@@ -32,8 +32,8 @@ export type MainStackParamList = {
   Diet: undefined;
   DietMealDetail: { mealId: string; mealLabel: string };
   ScannerHome: undefined;
-  ScannerCamera: undefined;
-  ScannerResult: undefined;
+  ScannerCamera: { mode: 'label' | 'plate' };
+  ScannerResult: { imageUri: string; mode: 'label' | 'plate' };
   Progress: undefined;
   MeasurementsHistory: undefined;
   ProgressChart: { metric: string; metricLabel: string };

@@ -1,11 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import GradientHeader from '../../components/common/GradientHeader';
-import GradientButton from '../../components/common/GradientButton';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { mockScanHistory } from '../../mocks/data';
-import { colors, fonts, radius, shadow } from '../../constants/theme';
+import { colors, fonts, gradientColors, radius, shadow } from '../../constants/theme';
+
+type Mode = 'plate' | 'label';
+
+const MODES: { mode: Mode; icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
+  {
+    mode: 'plate',
+    icon: 'restaurant-outline',
+    title: 'Escanear plato',
+    body: 'Fotografía tu comida y la IA identificará el alimento y su nivel de riesgo.',
+  },
+  {
+    mode: 'label',
+    icon: 'pricetag-outline',
+    title: 'Escanear etiqueta',
+    body: 'Apunta a la tabla nutricional de un producto para extraer sus nutrientes.',
+  },
+];
 
 export default function ScannerHomeScreen({ navigation }: MainStackScreenProps<'ScannerHome'>) {
   return (
@@ -13,54 +29,42 @@ export default function ScannerHomeScreen({ navigation }: MainStackScreenProps<'
       <GradientHeader title="Escáner Nutricional" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Illustration */}
         <View style={styles.illustrationArea}>
           <View style={styles.scanFrame}>
             <View style={styles.cornerTL} />
             <View style={styles.cornerTR} />
-            <Ionicons name="scan-outline" size={80} color={colors.gradientEnd} />
+            <Ionicons name="scan-outline" size={72} color={colors.gradientEnd} />
             <View style={styles.cornerBL} />
             <View style={styles.cornerBR} />
           </View>
-          <Text style={styles.illustrationTitle}>Escanea etiquetas nutricionales</Text>
+          <Text style={styles.illustrationTitle}>¿Qué deseas escanear?</Text>
           <Text style={styles.illustrationBody}>
-            Apunta la cámara al código de barras o etiqueta nutricional del producto para obtener su información al instante.
+            Elige el tipo de análisis. La cámara enviará la imagen al motor de IA para su evaluación.
           </Text>
         </View>
 
-        <GradientButton
-          label="Abrir cámara"
-          onPress={() => navigation.navigate('ScannerCamera')}
-          style={{ marginBottom: 24 }}
-        />
-
-        {/* Scan history */}
-        {mockScanHistory.length > 0 && (
-          <>
-            <Text style={styles.historyTitle}>Escaneos recientes</Text>
-            {mockScanHistory.map((product) => (
-              <TouchableOpacity
-                key={product.id}
-                style={styles.historyCard}
-                onPress={() => navigation.navigate('ScannerResult')}
-                activeOpacity={0.85}
-              >
-                <View style={styles.historyIconArea}>
-                  <Ionicons name="barcode-outline" size={26} color={colors.gradientEnd} />
-                </View>
-                <View style={styles.historyInfo}>
-                  <Text style={styles.historyName}>{product.name}</Text>
-                  <Text style={styles.historyBrand}>{product.brand}</Text>
-                  <Text style={styles.historyDate}>{product.scannedAt}</Text>
-                </View>
-                <View style={styles.caloriesBadge}>
-                  <Text style={styles.caloriesBadgeText}>{product.calories}</Text>
-                  <Text style={styles.calUnit}>kcal</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
+        {MODES.map(({ mode, icon, title, body }) => (
+          <TouchableOpacity
+            key={mode}
+            style={styles.modeCard}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('ScannerCamera', { mode })}
+          >
+            <LinearGradient
+              colors={gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modeIcon}
+            >
+              <Ionicons name={icon} size={28} color={colors.white} />
+            </LinearGradient>
+            <View style={styles.modeInfo}>
+              <Text style={styles.modeTitle}>{title}</Text>
+              <Text style={styles.modeBody}>{body}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </View>
   );
@@ -75,19 +79,15 @@ const cornerStyle = {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 48 },
-  illustrationArea: {
-    alignItems: 'center',
-    marginBottom: 28,
-    paddingTop: 12,
-  },
+  illustrationArea: { alignItems: 'center', marginBottom: 28, paddingTop: 12 },
   scanFrame: {
-    width: 160,
-    height: 160,
+    width: 150,
+    height: 150,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceLight,
     borderRadius: 20,
-    marginBottom: 24,
+    marginBottom: 22,
     position: 'relative',
   },
   cornerTL: { ...cornerStyle, top: 10, left: 10, borderTopWidth: 2.5, borderLeftWidth: 2.5 },
@@ -109,61 +109,34 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     paddingHorizontal: 12,
   },
-  historyTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 16,
-    color: colors.textDark,
-    marginBottom: 12,
-  },
-  historyCard: {
+  modeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: radius.lg,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 14,
     ...shadow.card,
   },
-  historyIconArea: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surfaceLight,
+  modeIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  historyInfo: {
-    flex: 1,
-  },
-  historyName: {
+  modeInfo: { flex: 1 },
+  modeTitle: {
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.textDark,
+    marginBottom: 3,
   },
-  historyBrand: {
+  modeBody: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 12.5,
     color: colors.textMuted,
-    marginTop: 1,
-  },
-  historyDate: {
-    fontFamily: fonts.light,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 3,
-  },
-  caloriesBadge: {
-    alignItems: 'flex-end',
-  },
-  caloriesBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.gradientEnd,
-  },
-  calUnit: {
-    fontFamily: fonts.light,
-    fontSize: 11,
-    color: colors.textMuted,
+    lineHeight: 18,
   },
 });

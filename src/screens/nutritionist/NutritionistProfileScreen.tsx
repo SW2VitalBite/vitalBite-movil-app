@@ -1,22 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Platform, StatusBar, ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@apollo/client/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GradientButton from '../../components/common/GradientButton';
 import Avatar from '../../components/common/Avatar';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { mockNutritionist } from '../../mocks/data';
+import { GET_MY_NUTRITIONIST, GqlNutritionist } from '../../services/nutritionist.service';
 import { colors, fonts, gradientColors, radius, shadow } from '../../constants/theme';
 
 export default function NutritionistProfileScreen({ navigation }: MainStackScreenProps<'NutritionistProfile'>) {
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : insets.top;
-  const nut = mockNutritionist;
+
+  const { data, loading } = useQuery<{ myNutritionist: GqlNutritionist | null }>(
+    GET_MY_NUTRITIONIST,
+    { fetchPolicy: 'cache-and-network' },
+  );
+
+  const nut = data?.myNutritionist;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
-      {/* Gradient header with profile */}
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
@@ -27,56 +36,45 @@ export default function NutritionistProfileScreen({ navigation }: MainStackScree
           <Ionicons name="chevron-back" size={24} color={colors.white} />
         </TouchableOpacity>
 
-        <View style={styles.profileArea}>
-          <Avatar source={nut.avatar} size={96} ring style={{ marginBottom: 12 }} />
-          <Text style={styles.nutName}>{nut.name}</Text>
-          <Text style={styles.nutTitle}>{nut.title}</Text>
-          <Text style={styles.nutSpecialty}>{nut.specialty}</Text>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <StatChip icon="people-outline" value={String(nut.activePatients)} label="Pacientes" />
-          <StatChip icon="star-outline" value={String(nut.rating)} label="Calificación" />
-          <StatChip icon="time-outline" value={`${nut.yearsExperience}a`} label="Experiencia" />
-        </View>
+        {loading ? (
+          <ActivityIndicator color={colors.white} style={{ marginVertical: 32 }} />
+        ) : (
+          <View style={styles.profileArea}>
+            <Avatar source={null} size={96} ring style={{ marginBottom: 12 }} />
+            <Text style={styles.nutName}>
+              {nut ? `${nut.firstName} ${nut.lastName}` : 'Nutricionista'}
+            </Text>
+            <Text style={styles.nutTitle}>Nutricionista Clínica</Text>
+            <Text style={styles.nutSpecialty}>
+              {nut?.email ?? '—'}
+            </Text>
+          </View>
+        )}
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* About */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sobre mí</Text>
-          <Text style={styles.description}>{nut.description}</Text>
-        </View>
-
-        {/* Consultorio */}
-        <View style={styles.infoRow}>
-          <Ionicons name="business-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 10 }} />
-          <Text style={styles.infoLabel}>Consultorio</Text>
-          <Text style={styles.infoValue}>{nut.consultorio}</Text>
-        </View>
-
-        {/* Schedule */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Horarios de atención</Text>
-          {nut.schedule.map((s) => (
-            <View key={s.day} style={styles.scheduleRow}>
-              <Text style={styles.scheduleDay}>{s.day}</Text>
-              <Text style={styles.scheduleHours}>{s.hours}</Text>
+        {!loading && nut && (
+          <>
+            <View style={styles.infoRow}>
+              <Ionicons name="mail-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 10 }} />
+              <Text style={styles.infoLabel}>Correo</Text>
+              <Text style={styles.infoValue}>{nut.email}</Text>
             </View>
-          ))}
-        </View>
+          </>
+        )}
 
-        {/* Actions */}
+        {!loading && !nut && (
+          <View style={styles.empty}>
+            <Ionicons name="person-outline" size={56} color={colors.border} />
+            <Text style={styles.emptyText}>No se encontró el nutricionista asignado</Text>
+          </View>
+        )}
+
         <GradientButton
-          label="Agendar cita vía WhatsApp"
+          label="Agendar cita"
           onPress={() => navigation.navigate('NutritionistSchedule')}
           style={{ marginBottom: 12 }}
         />
-        <TouchableOpacity style={styles.whatsappBtn} activeOpacity={0.85}>
-          <Ionicons name="logo-whatsapp" size={22} color={colors.white} style={{ marginRight: 8 }} />
-          <Text style={styles.whatsappText}>Enviar mensaje directo</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -108,18 +106,7 @@ const styles = StyleSheet.create({
   },
   profileArea: {
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  nutAvatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
   },
   nutName: {
     fontFamily: fonts.bold,
@@ -138,14 +125,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.75)',
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-  },
   statChip: {
     alignItems: 'center',
     flex: 1,
@@ -162,21 +141,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   content: { padding: 20, paddingBottom: 48 },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 16,
-    color: colors.textDark,
-    marginBottom: 10,
-  },
-  description: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.textMuted,
-    lineHeight: 22,
-  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -198,34 +162,16 @@ const styles = StyleSheet.create({
     maxWidth: '60%',
     textAlign: 'right',
   },
-  scheduleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  empty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
   },
-  scheduleDay: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  scheduleHours: {
+  emptyText: {
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.textMuted,
-  },
-  whatsappBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#25D366',
-    borderRadius: radius.xl,
-    paddingVertical: 14,
-  },
-  whatsappText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
-    color: colors.white,
+    textAlign: 'center',
   },
 });

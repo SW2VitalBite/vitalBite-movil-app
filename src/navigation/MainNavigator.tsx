@@ -32,6 +32,7 @@ import PaymentFormScreen from '../screens/payment/PaymentFormScreen';
 import PaymentConfirmScreen from '../screens/payment/PaymentConfirmScreen';
 
 import { colors, fonts, gradientColors, bottomTabHeight } from '../constants/theme';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // ─── Bottom Tab Navigator ─────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ const tabIconGradient = {
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
 export default function MainNavigator() {
+  usePushNotifications();
+
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false, animation: 'slide_from_right' }}

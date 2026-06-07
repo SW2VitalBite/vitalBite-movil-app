@@ -1,47 +1,100 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useQuery } from '@apollo/client/react';
 import GradientHeader from '../../components/common/GradientHeader';
 import DateChip from '../../components/common/DateChip';
 import ProgressChart from '../../components/progress/ProgressChart';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { mockMeasurements } from '../../mocks/data';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  GET_BODY_MEASUREMENTS,
+  GET_BODY_COMPOSITION_HISTORY,
+  GqlBodyMeasurement,
+  GqlBodyComposition,
+} from '../../services/progress.service';
 import { colors, fonts, radius, shadow } from '../../constants/theme';
 
 const METRICS = [
-  { key: 'weight', label: 'Peso (kg)' },
-  { key: 'bmi', label: 'IMC' },
-  { key: 'bodyFatPct', label: 'Grasa %' },
-  { key: 'muscleMassKg', label: 'Músculo (kg)' },
-  { key: 'waterPct', label: 'Agua %' },
+  { key: 'weight', label: 'Peso (kg)', source: 'meas' as const },
+  { key: 'bmi', label: 'IMC', source: 'meas' as const },
+  { key: 'bodyFatPct', label: 'Grasa %', source: 'comp' as const },
+  { key: 'muscleMassKg', label: 'Músculo (kg)', source: 'comp' as const },
+  { key: 'waterPct', label: 'Agua %', source: 'comp' as const },
 ];
 
-const RANGES = ['1 mes', '3 meses', '6 meses', '1 año'];
+const RANGES_DAYS: Record<string, number> = {
+  '1 mes': 30,
+  '3 meses': 90,
+  '6 meses': 180,
+  '1 año': 365,
+};
+
+function filterByDays<T extends { measuredAt: string }>(items: T[], days: number): T[] {
+  const cutoff = new Date(Date.now() - days * 86400000);
+  return items.filter((m) => new Date(m.measuredAt) >= cutoff);
+}
+
+function extractMeasValue(m: GqlBodyMeasurement, key: string): number {
+  if (key === 'weight') return m.weightKg;
+  if (key === 'bmi') return m.bmi ?? 0;
+  return 0;
+}
+
+function extractCompValue(c: GqlBodyComposition, key: string): number {
+  if (key === 'bodyFatPct') return c.bodyFatPercentage ?? 0;
+  if (key === 'muscleMassKg') return c.muscleMassKg ?? 0;
+  if (key === 'waterPct') return c.waterPercentage ?? 0;
+  return 0;
+}
 
 export default function ProgressChartScreen({ navigation, route }: MainStackScreenProps<'ProgressChart'>) {
-  const { metric: initialMetric, metricLabel } = route.params;
+  const { metric: initialMetric } = route.params;
+  const { patientId } = useAuth();
   const [activeMetric, setActiveMetric] = useState(initialMetric);
   const [activeRange, setActiveRange] = useState('6 meses');
 
-  const metricConfig = METRICS.find((m) => m.key === activeMetric) ?? METRICS[0];
+  const { data: measData, loading: measLoading } = useQuery<{
+    bodyMeasurementsByPatient: GqlBodyMeasurement[];
+  }>(GET_BODY_MEASUREMENTS, { variables: { patientId }, skip: !patientId, fetchPolicy: 'cache-and-network' });
 
-  const chartData = [...mockMeasurements]
-    .reverse()
-    .map((m) => ({
-      label: m.date.slice(5),
-      value: m[activeMetric as keyof typeof m] as number,
-    }));
+  const { data: compData, loading: compLoading } = useQuery<{
+    bodyCompositionByPatient: GqlBodyComposition[];
+  }>(GET_BODY_COMPOSITION_HISTORY, { variables: { patientId }, skip: !patientId, fetchPolicy: 'cache-and-network' });
+
+  const metricConfig = METRICS.find((m) => m.key === activeMetric) ?? METRICS[0];
+  const loading = measLoading || compLoading;
+  const days = RANGES_DAYS[activeRange] ?? 180;
+
+  const chartData = (() => {
+    if (metricConfig.source === 'meas') {
+      const all = measData?.bodyMeasurementsByPatient ?? [];
+      return filterByDays(all, days)
+        .reverse()
+        .map((m) => ({
+          label: new Date(m.measuredAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+          value: extractMeasValue(m, activeMetric),
+        }));
+    } else {
+      const all = compData?.bodyCompositionByPatient ?? [];
+      return filterByDays(all, days)
+        .reverse()
+        .map((c) => ({
+          label: new Date(c.measuredAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+          value: extractCompValue(c, activeMetric),
+        }));
+    }
+  })();
 
   const latest = chartData[chartData.length - 1];
   const prev = chartData[chartData.length - 2];
-  const diff = latest && prev ? (latest.value - prev.value).toFixed(2) : '0';
-  const diffPositive = parseFloat(diff) >= 0;
+  const diff = latest && prev ? (latest.value - prev.value).toFixed(2) : null;
+  const diffPositive = diff !== null && parseFloat(diff) >= 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       <GradientHeader title="Gráfica detallada" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Metric selector */}
         <Text style={styles.sectionLabel}>Indicador</Text>
         <ScrollView
           horizontal
@@ -58,10 +111,9 @@ export default function ProgressChartScreen({ navigation, route }: MainStackScre
           ))}
         </ScrollView>
 
-        {/* Range selector */}
         <Text style={styles.sectionLabel}>Período</Text>
         <View style={styles.rangeRow}>
-          {RANGES.map((r) => (
+          {Object.keys(RANGES_DAYS).map((r) => (
             <TouchableOpacity
               key={r}
               style={[styles.rangeBtn, activeRange === r && styles.rangeBtnActive]}
@@ -73,25 +125,30 @@ export default function ProgressChartScreen({ navigation, route }: MainStackScre
           ))}
         </View>
 
-        {/* Chart */}
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>{metricConfig.label}</Text>
-          <ProgressChart data={chartData} unit="" height={140} />
+          {loading ? (
+            <ActivityIndicator color={colors.gradientEnd} style={{ marginVertical: 32 }} />
+          ) : chartData.length === 0 ? (
+            <Text style={styles.noDataText}>Sin datos para el período seleccionado</Text>
+          ) : (
+            <ProgressChart data={chartData} unit="" height={140} />
+          )}
         </View>
 
-        {/* Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Interpretación</Text>
-          <Text style={styles.summaryText}>
-            Tu {metricConfig.label.toLowerCase()} {diffPositive ? 'aumentó' : 'disminuyó'}{' '}
-            <Text style={[styles.diffText, { color: diffPositive ? colors.warning : colors.success }]}>
-              {Math.abs(parseFloat(diff))}
-            </Text>{' '}
-            respecto a la sesión anterior.
-          </Text>
-        </View>
+        {diff !== null && (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Interpretación</Text>
+            <Text style={styles.summaryText}>
+              Tu {metricConfig.label.toLowerCase()} {diffPositive ? 'aumentó' : 'disminuyó'}{' '}
+              <Text style={[styles.diffText, { color: diffPositive ? colors.warning : colors.success }]}>
+                {Math.abs(parseFloat(diff))}
+              </Text>{' '}
+              respecto a la medición anterior.
+            </Text>
+          </View>
+        )}
 
-        {/* Data table */}
         <Text style={styles.sectionLabel}>Tabla de datos</Text>
         <View style={styles.table}>
           <View style={[styles.tableRow, styles.tableHeader]}>
@@ -164,6 +221,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textDark,
     marginBottom: 8,
+  },
+  noDataText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginVertical: 24,
   },
   summaryCard: {
     backgroundColor: colors.surfaceLight,

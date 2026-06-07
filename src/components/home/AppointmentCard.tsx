@@ -22,7 +22,7 @@ export default function AppointmentCard({
   time,
   status,
   onPress,
-  nutritionistName = 'Nut. Ana García',
+  nutritionistName = 'Nutricionista',
   avatar = mockNutritionist.avatar,
   compact = false,
 }: AppointmentCardProps) {

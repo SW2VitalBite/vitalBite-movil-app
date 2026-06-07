@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import GradientButton from '../../components/common/GradientButton';
 import InputField from '../../components/common/InputField';
 import GradientHeader from '../../components/common/GradientHeader';
 import type { AuthScreenProps } from '../../navigation/types';
-import { colors, fonts, spacing } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { colors, fonts } from '../../constants/theme';
 
 export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) {
+  const { register } = useAuth();
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -17,8 +20,49 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
     confirmPassword: '',
     officeCode: '',
   });
+  const [loading, setLoading] = useState(false);
 
-  const update = (key: keyof typeof form) => (val: string) => setForm({ ...form, [key]: val });
+  const update = (key: keyof typeof form) => (val: string) =>
+    setForm((prev) => ({ ...prev, [key]: val }));
+
+  const handleSubmit = async () => {
+    const { firstName, lastName, email, password, confirmPassword, officeCode } = form;
+
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert('Error', 'Ingresa tu nombre y apellido.');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Error', 'Ingresa tu correo electrónico.');
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden.');
+      return;
+    }
+    if (!officeCode.trim()) {
+      Alert.alert('Error', 'Ingresa el código de consultorio que te dio tu nutricionista.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await register({ firstName, lastName, email, password, officeCode });
+      // AuthContext seteará el token → AppNavigator navegará a Main automáticamente
+    } catch (err: any) {
+      const msg =
+        err?.graphQLErrors?.[0]?.message ??
+        err?.message ??
+        'No se pudo crear la cuenta. Verifica el código de consultorio.';
+      Alert.alert('Error al registrarse', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -33,14 +77,26 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>Regístrate gratis</Text>
-        <Text style={styles.subtitle}>Tu nutricionista te habrá dado un código de consultorio</Text>
+        <Text style={styles.subtitle}>
+          Tu nutricionista te habrá dado un código de consultorio
+        </Text>
 
         <View style={styles.nameRow}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <InputField label="Nombre" placeholder="María" value={form.firstName} onChangeText={update('firstName')} />
+            <InputField
+              label="Nombre"
+              placeholder="María"
+              value={form.firstName}
+              onChangeText={update('firstName')}
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <InputField label="Apellido" placeholder="González" value={form.lastName} onChangeText={update('lastName')} />
+            <InputField
+              label="Apellido"
+              placeholder="González"
+              value={form.lastName}
+              onChangeText={update('lastName')}
+            />
           </View>
         </View>
 
@@ -76,7 +132,11 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
           onChangeText={update('officeCode')}
         />
 
-        <GradientButton label="Crear cuenta" onPress={() => {}} style={{ marginTop: 8 }} />
+        <GradientButton
+          label={loading ? 'Creando cuenta…' : 'Crear cuenta'}
+          onPress={handleSubmit}
+          style={{ marginTop: 8 }}
+        />
 
         <View style={styles.loginRow}>
           <Text style={styles.loginText}>¿Ya tienes cuenta? </Text>

@@ -13,6 +13,9 @@ import {
   LeagueSpartan_700Bold,
 } from '@expo-google-fonts/league-spartan';
 import * as SplashScreen from 'expo-splash-screen';
+import { ApolloProvider } from '@apollo/client/react';
+import { apolloClient } from './src/lib/apolloClient';
+import { AuthProvider } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/constants/theme';
 
@@ -57,14 +60,18 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
-          <StatusBar
-            barStyle="light-content"
-            backgroundColor={colors.gradientEnd}
-            translucent={Platform.OS === 'android'}
-          />
-          <AppNavigator />
-        </NavigationContainer>
+        <ApolloProvider client={apolloClient}>
+          <AuthProvider>
+            <NavigationContainer>
+              <StatusBar
+                barStyle="light-content"
+                backgroundColor={colors.gradientEnd}
+                translucent={Platform.OS === 'android'}
+              />
+              <AppNavigator />
+            </NavigationContainer>
+          </AuthProvider>
+        </ApolloProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

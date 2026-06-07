@@ -1,86 +1,149 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@apollo/client/react';
 import GradientHeader from '../../components/common/GradientHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { pastAppointments } from '../../mocks/data';
+import { useAuth } from '../../contexts/AuthContext';
+import { GET_MY_APPOINTMENTS, GqlAppointment } from '../../services/appointments.service';
+import { mapBackendStatus, formatAppointmentDate, formatAppointmentTime } from '../../utils/appointments';
 import { colors, fonts, radius, shadow } from '../../constants/theme';
 
-const DATE_MAP: Record<string, string> = {
-  'apt-003': 'Jue 28 May 2026',
-  'apt-004': 'Jue 30 Abr 2026',
-  'apt-005': 'Mié 25 Mar 2026',
-};
+const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 export default function AppointmentHistoryScreen({ navigation }: MainStackScreenProps<'AppointmentHistory'>) {
+  const { patientId } = useAuth();
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  const { data, loading } = useQuery<{ appointmentsByPatient: GqlAppointment[] }>(
+    GET_MY_APPOINTMENTS,
+    { variables: { patientId }, skip: !patientId, fetchPolicy: 'cache-and-network' },
+  );
+
+  const appointments = (data?.appointmentsByPatient ?? [])
+    .filter((a) => PAST_STATUSES.includes(a.status))
+    .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       <GradientHeader title="Historial de Citas" onBack={() => navigation.goBack()} />
 
-      <FlatList
-        data={pastAppointments}
-        keyExtractor={(a) => a.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
-          const isOpen = expanded === item.id;
-          return (
-            <View style={styles.historyCard}>
-              <TouchableOpacity
-                style={styles.cardHeader}
-                onPress={() => setExpanded(isOpen ? null : item.id)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.dateArea}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.gradientEnd} style={{ marginRight: 6 }} />
-                  <Text style={styles.dateText}>{DATE_MAP[item.id] ?? item.date}</Text>
-                  <Text style={styles.timeText}>{item.time}</Text>
-                </View>
-                <View style={styles.rightArea}>
-                  <StatusBadge status={item.status} />
-                  <Ionicons
-                    name={isOpen ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.textMuted}
-                    style={{ marginLeft: 8 }}
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {isOpen && (
-                <View style={styles.cardBody}>
-                  {item.weightRecorded ? (
-                    <View style={styles.detailRow}>
-                      <Ionicons name="scale-outline" size={15} color={colors.textMuted} style={{ marginRight: 6 }} />
-                      <Text style={styles.detailLabel}>Peso registrado:</Text>
-                      <Text style={styles.detailValue}>{item.weightRecorded} kg</Text>
-                    </View>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.pdfRow}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="document-text-outline" size={15} color={colors.gradientEnd} style={{ marginRight: 6 }} />
-                    <Text style={styles.pdfLink}>Descargar resumen de sesión (PDF)</Text>
-                    <Ionicons name="download-outline" size={15} color={colors.gradientEnd} style={{ marginLeft: 4 }} />
-                  </TouchableOpacity>
-                </View>
-              )}
+      {loading && appointments.length === 0 ? (
+        <ActivityIndicator color={colors.gradientEnd} style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={appointments}
+          keyExtractor={(a) => a.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="calendar-outline" size={56} color={colors.border} />
+              <Text style={styles.emptyText}>Sin historial de citas</Text>
             </View>
-          );
-        }}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-      />
+          }
+          renderItem={({ item }) => {
+            const isOpen = expanded === item.id;
+            return (
+              <View style={styles.historyCard}>
+                <TouchableOpacity
+                  style={styles.cardHeader}
+                  onPress={() => setExpanded(isOpen ? null : item.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.dateArea}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color={colors.gradientEnd}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.dateText}>{formatAppointmentDate(item.scheduledAt)}</Text>
+                    <Text style={styles.timeText}>{formatAppointmentTime(item.scheduledAt)}</Text>
+                  </View>
+                  <View style={styles.rightArea}>
+                    <StatusBadge status={mapBackendStatus(item.status)} />
+                    <Ionicons
+                      name={isOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={colors.textMuted}
+                      style={{ marginLeft: 8 }}
+                    />
+                  </View>
+                </TouchableOpacity>
+
+                {isOpen && (
+                  <View style={styles.cardBody}>
+                    {item.reason ? (
+                      <View style={styles.detailRow}>
+                        <Ionicons
+                          name="information-circle-outline"
+                          size={15}
+                          color={colors.textMuted}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.detailLabel}>Motivo:</Text>
+                        <Text style={styles.detailValue}>{item.reason}</Text>
+                      </View>
+                    ) : null}
+                    {item.cancelReason ? (
+                      <View style={styles.detailRow}>
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={15}
+                          color={colors.danger}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.detailLabel}>Cancelación:</Text>
+                        <Text style={[styles.detailValue, { color: colors.danger }]}>{item.cancelReason}</Text>
+                      </View>
+                    ) : null}
+                    {item.notes ? (
+                      <View style={styles.detailRow}>
+                        <Ionicons
+                          name="document-text-outline"
+                          size={15}
+                          color={colors.textMuted}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.detailLabel}>Notas:</Text>
+                        <Text style={styles.detailValue}>{item.notes}</Text>
+                      </View>
+                    ) : null}
+                    <TouchableOpacity style={styles.pdfRow} activeOpacity={0.8}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={15}
+                        color={colors.gradientEnd}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={styles.pdfLink}>Descargar resumen de sesión (PDF)</Text>
+                      <Ionicons name="download-outline" size={15} color={colors.gradientEnd} style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
-    padding: 20,
-    paddingBottom: 48,
+  list: { padding: 20, paddingBottom: 48 },
+  empty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+    gap: 12,
+  },
+  emptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
   },
   historyCard: {
     backgroundColor: colors.white,
@@ -116,14 +179,15 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     padding: 14,
-    paddingTop: 0,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: 10,
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
   },
   detailLabel: {
     fontFamily: fonts.regular,
@@ -133,8 +197,9 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontFamily: fonts.semiBold,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textDark,
+    flex: 1,
   },
   pdfRow: {
     flexDirection: 'row',

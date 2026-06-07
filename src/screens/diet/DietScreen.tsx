@@ -1,15 +1,78 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@apollo/client/react';
 import GradientHeader from '../../components/common/GradientHeader';
 import GradientButton from '../../components/common/GradientButton';
 import MealCard from '../../components/diet/MealCard';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { mockDiet } from '../../mocks/data';
+import { useAuth } from '../../contexts/AuthContext';
+import { GET_ACTIVE_DIET, GqlDiet, GqlDietMeal } from '../../services/diets.service';
+import type { MealSection, FoodItem } from '../../mocks/data';
 import { colors, fonts, radius, shadow } from '../../constants/theme';
 
+const MEAL_META: Record<string, { type: MealSection['type']; label: string; icon: string }> = {
+  DESAYUNO: { type: 'breakfast', label: 'Desayuno', icon: 'sunny-outline' },
+  ALMUERZO: { type: 'lunch', label: 'Almuerzo', icon: 'partly-sunny-outline' },
+  CENA: { type: 'dinner', label: 'Cena', icon: 'moon-outline' },
+  MERIENDA: { type: 'snack', label: 'Merienda', icon: 'nutrition-outline' },
+};
+
+function toMealSection(meal: GqlDietMeal): MealSection {
+  const meta = MEAL_META[meal.mealType] ?? { type: 'snack', label: meal.mealType, icon: 'nutrition-outline' };
+  const items: FoodItem[] = (meal.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    portion: `${item.quantity} ${item.unit}`,
+    calories: item.calories ?? 0,
+    protein: item.protein ?? 0,
+    carbs: item.carbs ?? 0,
+    fat: item.fat ?? 0,
+  }));
+  const totalCalories = items.reduce((s, f) => s + f.calories, 0);
+  return { id: meal.id, ...meta, items, totalCalories };
+}
+
 export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>) {
-  const totalCalories = mockDiet.meals.reduce((s, m) => s + m.totalCalories, 0);
+  const { patientId } = useAuth();
+
+  const { data, loading, error } = useQuery<{ myActiveDiet: GqlDiet | null }>(GET_ACTIVE_DIET, {
+    variables: { patientId },
+    skip: !patientId,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const diet = data?.myActiveDiet;
+  const meals = (diet?.meals ?? []).map(toMealSection);
+  const totalCalories = meals.reduce((s, m) => s + m.totalCalories, 0);
+
+  if (loading && !diet) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.white }}>
+        <GradientHeader title="Mi Dieta" onBack={() => navigation.goBack()} />
+        <ActivityIndicator color={colors.gradientEnd} style={{ marginTop: 40 }} />
+      </View>
+    );
+  }
+
+  if (!diet) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.white }}>
+        <GradientHeader title="Mi Dieta" onBack={() => navigation.goBack()} />
+        <View style={styles.emptyContainer}>
+          <Ionicons name="leaf-outline" size={64} color={colors.border} />
+          <Text style={styles.emptyTitle}>Sin plan activo</Text>
+          <Text style={styles.emptySubtitle}>
+            Tu nutricionista aún no te ha asignado un plan de alimentación.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const startDateLabel = new Date(diet.startDate).toLocaleDateString('es-ES', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
@@ -21,17 +84,12 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
           <View style={styles.infoRow}>
             <Ionicons name="leaf-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
             <Text style={styles.infoLabel}>Plan</Text>
-            <Text style={styles.infoValue}>{mockDiet.name}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="person-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
-            <Text style={styles.infoLabel}>Asignado por</Text>
-            <Text style={styles.infoValue}>{mockDiet.nutritionist}</Text>
+            <Text style={styles.infoValue}>{diet.name}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
             <Text style={styles.infoLabel}>Desde</Text>
-            <Text style={styles.infoValue}>{mockDiet.assignedDate}</Text>
+            <Text style={styles.infoValue}>{startDateLabel}</Text>
           </View>
           <View style={styles.calorieBanner}>
             <Text style={styles.calorieTotalLabel}>Total del día</Text>
@@ -44,11 +102,13 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
 
         {/* Meal cards */}
         <Text style={styles.sectionTitle}>Tiempos de comida</Text>
-        {mockDiet.meals.map((meal) => (
+        {meals.map((meal) => (
           <MealCard
             key={meal.id}
             meal={meal}
-            onPress={() => navigation.navigate('DietMealDetail', { mealId: meal.id, mealLabel: meal.label })}
+            onPress={() =>
+              navigation.navigate('DietMealDetail', { mealId: meal.id, mealLabel: meal.label })
+            }
           />
         ))}
 
@@ -58,22 +118,40 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
           style={{ marginTop: 16, marginBottom: 8 }}
         />
 
-        <View style={styles.objectiveCard}>
-          <Ionicons name="flag-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 10 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.objLabel}>Objetivo del plan</Text>
-            <Text style={styles.objValue}>{mockDiet.objective}</Text>
+        {diet.objective ? (
+          <View style={styles.objectiveCard}>
+            <Ionicons name="flag-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.objLabel}>Objetivo del plan</Text>
+              <Text style={styles.objValue}>{diet.objective}</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: 20,
-    paddingBottom: 48,
+  content: { padding: 20, paddingBottom: 48 },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 18,
+    color: colors.textDark,
+  },
+  emptySubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   infoCard: {
     backgroundColor: colors.surfaceLight,

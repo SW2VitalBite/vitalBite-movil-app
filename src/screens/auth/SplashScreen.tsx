@@ -4,8 +4,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Logo from '../../components/common/Logo';
 import type { AuthScreenProps } from '../../navigation/types';
 import { colors, fonts, gradientColors } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) {
+  const { hasStoredSession, isLoading } = useAuth();
   const scale = new Animated.Value(0.7);
   const opacity = new Animated.Value(0);
 
@@ -14,13 +16,15 @@ export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) 
       Animated.spring(scale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
     ]).start();
-
-    const timer = setTimeout(() => {
-      navigation.replace('Onboarding');
-    }, 2500);
-
-    return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const timer = setTimeout(() => {
+      navigation.replace(hasStoredSession ? 'BiometricAuth' : 'Onboarding');
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [isLoading, hasStoredSession]);
 
   return (
     <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.container}>

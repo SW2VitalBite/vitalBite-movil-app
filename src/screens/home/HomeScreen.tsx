@@ -1,21 +1,58 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Platform, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@apollo/client/react';
 import AppointmentCard from '../../components/home/AppointmentCard';
 import ProgressCard from '../../components/home/ProgressCard';
 import DietPreviewCard from '../../components/home/DietPreviewCard';
 import Avatar from '../../components/common/Avatar';
 import type { MainTabScreenProps } from '../../navigation/types';
-import { mockUser, upcomingAppointments, latestMeasurement, goalWeightKg, mockDiet } from '../../mocks/data';
-import { colors, fonts, gradientColors, radius, shadow, spacing } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { GET_MY_APPOINTMENTS, GqlAppointment } from '../../services/appointments.service';
+import { GET_BODY_MEASUREMENTS, GqlBodyMeasurement } from '../../services/progress.service';
+import { GET_ACTIVE_DIET, GqlDiet } from '../../services/diets.service';
+import { GET_MY_NUTRITIONIST, GqlNutritionist } from '../../services/nutritionist.service';
+import { goalWeightKg } from '../../mocks/data';
+import { mapBackendStatus, formatAppointmentDate, formatAppointmentTime } from '../../utils/appointments';
+import { colors, fonts, gradientColors, radius, shadow } from '../../constants/theme';
+
+const UPCOMING_STATUSES = ['SCHEDULED', 'CONFIRMED', 'RESCHEDULED'];
 
 export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>) {
   const insets = useSafeAreaInsets();
-  const nextAppt = upcomingAppointments[0];
+  const { user, patientId } = useAuth();
+
+  const { data: apptData, loading: apptLoading } = useQuery<{ appointmentsByPatient: GqlAppointment[] }>(GET_MY_APPOINTMENTS, {
+    variables: { patientId },
+    skip: !patientId,
+  });
+
+  const { data: measData, loading: measLoading } = useQuery<{ bodyMeasurementsByPatient: GqlBodyMeasurement[] }>(GET_BODY_MEASUREMENTS, {
+    variables: { patientId },
+    skip: !patientId,
+  });
+
+  const { data: dietData } = useQuery<{ myActiveDiet: GqlDiet | null }>(GET_ACTIVE_DIET, {
+    variables: { patientId },
+    skip: !patientId,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: nutData } = useQuery<{ myNutritionist: GqlNutritionist | null }>(GET_MY_NUTRITIONIST);
+  const nut = nutData?.myNutritionist;
+  const nutritionistName = nut ? `Nut. ${nut.firstName} ${nut.lastName}` : undefined;
+
+  const appointments: GqlAppointment[] = apptData?.appointmentsByPatient ?? [];
+  const nextAppt = [...appointments]
+    .filter((a) => UPCOMING_STATUSES.includes(a.status))
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+
+  const measurements: GqlBodyMeasurement[] = measData?.bodyMeasurementsByPatient ?? [];
+  const latestMeas = measurements[0];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
@@ -32,12 +69,12 @@ export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>
             activeOpacity={0.8}
             onPress={() => (navigation as any).navigate?.('ProfileTab')}
           >
-            <Avatar source={mockUser.avatar} size={44} ring ringColor="rgba(255,255,255,0.7)" />
+            <Avatar source={null} size={44} ring ringColor="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
 
           <View style={styles.greetingArea}>
             <Text style={styles.greetingMuted}>Buenos días,</Text>
-            <Text style={styles.greetingName}>{mockUser.firstName} ✨</Text>
+            <Text style={styles.greetingName}>{user?.firstName ?? '—'} ✨</Text>
           </View>
 
           <TouchableOpacity
@@ -57,34 +94,43 @@ export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>
         showsVerticalScrollIndicator={false}
       >
         {/* Next appointment */}
-        {nextAppt && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Próxima Cita</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Próxima Cita</Text>
+          {apptLoading ? (
+            <ActivityIndicator color={colors.gradientEnd} style={{ marginVertical: 12 }} />
+          ) : nextAppt ? (
             <AppointmentCard
-              date="Miércoles 10 Jun 2026"
-              time={nextAppt.time}
-              status={nextAppt.status}
+              date={formatAppointmentDate(nextAppt.scheduledAt)}
+              time={formatAppointmentTime(nextAppt.scheduledAt)}
+              status={mapBackendStatus(nextAppt.status)}
+              nutritionistName={nutritionistName}
               onPress={() => (navigation as any).navigate?.('AppointmentDetail', { appointmentId: nextAppt.id })}
             />
-          </View>
-        )}
+          ) : (
+            <Text style={styles.emptyText}>No tienes citas próximas</Text>
+          )}
+        </View>
 
         {/* Progress */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Mi Progreso</Text>
-          <ProgressCard
-            currentWeight={latestMeasurement.weight}
-            goalWeight={goalWeightKg}
-            bmi={latestMeasurement.bmi}
-          />
+          {measLoading ? (
+            <ActivityIndicator color={colors.gradientEnd} style={{ marginVertical: 12 }} />
+          ) : (
+            <ProgressCard
+              currentWeight={latestMeas?.weightKg ?? 0}
+              goalWeight={goalWeightKg}
+              bmi={latestMeas?.bmi ?? 0}
+            />
+          )}
         </View>
 
         {/* Diet preview */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Alimentación</Text>
           <DietPreviewCard
-            dietName={mockDiet.name}
-            nextMeal="Almuerzo"
+            dietName={dietData?.myActiveDiet?.name ?? 'Sin plan activo'}
+            nextMeal="Ver plan completo"
             onPress={() => (navigation as any).navigate?.('Diet')}
           />
         </View>
@@ -169,14 +215,6 @@ const styles = StyleSheet.create({
   avatarBtn: {
     marginRight: 12,
   },
-  avatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   greetingArea: {
     flex: 1,
   },
@@ -224,6 +262,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textDark,
     marginBottom: 10,
+  },
+  emptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
+    paddingVertical: 8,
   },
   quickGrid: {
     flexDirection: 'row',

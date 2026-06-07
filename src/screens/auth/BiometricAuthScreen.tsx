@@ -1,12 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Alert,
+} from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { AuthScreenProps } from '../../navigation/types';
+import { useAuth } from '../../contexts/AuthContext';
 import { colors, fonts, gradientColors } from '../../constants/theme';
 
 export default function BiometricAuthScreen({ navigation }: AuthScreenProps<'BiometricAuth'>) {
-  const pulse = new Animated.Value(1);
+  const { restoreSession } = useAuth();
+  const pulse = useRef(new Animated.Value(1)).current;
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const startPulse = () => {
     Animated.loop(
@@ -17,9 +28,50 @@ export default function BiometricAuthScreen({ navigation }: AuthScreenProps<'Bio
     ).start();
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     startPulse();
+    authenticate();
   }, []);
+
+  const authenticate = async () => {
+    if (isAuthenticating) return;
+    setIsAuthenticating(true);
+
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!compatible || !enrolled) {
+        // Si no hay biometría disponible, restaurar sesión directamente
+        const ok = await restoreSession();
+        if (!ok) navigation.replace('Login');
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Verifica tu identidad para continuar',
+        cancelLabel: 'Usar contraseña',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        const ok = await restoreSession();
+        if (!ok) {
+          Alert.alert('Sesión expirada', 'Inicia sesión nuevamente.');
+          navigation.replace('Login');
+        }
+        // Si ok=true, token queda seteado y AppNavigator redirige a Main automáticamente
+      } else if (result.error === 'user_cancel' || result.error === 'system_cancel') {
+        navigation.replace('Login');
+      } else {
+        Alert.alert('Autenticación fallida', 'No se pudo verificar tu identidad.');
+      }
+    } catch {
+      Alert.alert('Error', 'Ocurrió un problema con la autenticación biométrica.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -34,23 +86,27 @@ export default function BiometricAuthScreen({ navigation }: AuthScreenProps<'Bio
         </Text>
       </View>
 
-      <Animated.View style={[styles.fingerprintWrapper, { transform: [{ scale: pulse }] }]}>
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fingerprintCircle}
-        >
-          <Ionicons name="finger-print-outline" size={72} color={colors.white} />
-        </LinearGradient>
-        <View style={styles.pulseRing} />
-      </Animated.View>
+      <TouchableOpacity onPress={authenticate} disabled={isAuthenticating} activeOpacity={0.8}>
+        <Animated.View style={[styles.fingerprintWrapper, { transform: [{ scale: pulse }] }]}>
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fingerprintCircle}
+          >
+            <Ionicons name="finger-print-outline" size={72} color={colors.white} />
+          </LinearGradient>
+          <View style={styles.pulseRing} />
+        </Animated.View>
+      </TouchableOpacity>
 
-      <Text style={styles.hintText}>Toca el sensor para ingresar</Text>
+      <Text style={styles.hintText}>
+        {isAuthenticating ? 'Verificando…' : 'Toca el sensor para ingresar'}
+      </Text>
 
       <TouchableOpacity
         style={styles.passwordLink}
-        onPress={() => navigation.navigate('Login')}
+        onPress={() => navigation.replace('Login')}
       >
         <Text style={styles.passwordLinkText}>Usar contraseña en su lugar</Text>
       </TouchableOpacity>
