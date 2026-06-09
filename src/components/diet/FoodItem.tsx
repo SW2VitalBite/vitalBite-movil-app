@@ -1,14 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts, radius } from '../../constants/theme';
-import type { FoodItem as FoodItemType } from '../../mocks/data';
+import { colors, fonts } from '../../constants/theme';
+
+export interface FoodItemData {
+  id: string;
+  name: string;
+  portion: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  notes?: string | null;
+}
 
 interface FoodItemProps {
-  item: FoodItemType;
+  item: FoodItemData;
 }
 
 export default function FoodItem({ item }: FoodItemProps) {
+  const hasMacros =
+    item.protein != null || item.carbs != null || item.fat != null;
+
   return (
     <View style={styles.row}>
       <View style={styles.iconDot}>
@@ -16,15 +29,18 @@ export default function FoodItem({ item }: FoodItemProps) {
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.portion}>{item.portion}</Text>
+        {item.portion ? <Text style={styles.portion}>{item.portion}</Text> : null}
+        {item.notes ? <Text style={styles.portion}>{item.notes}</Text> : null}
       </View>
       <View style={styles.macros}>
-        <Text style={styles.calories}>{item.calories} kcal</Text>
-        <View style={styles.macroRow}>
-          <Text style={styles.macro}>P {item.protein}g</Text>
-          <Text style={styles.macro}> · C {item.carbs}g</Text>
-          <Text style={styles.macro}> · G {item.fat}g</Text>
-        </View>
+        {item.calories > 0 && <Text style={styles.calories}>{item.calories} kcal</Text>}
+        {hasMacros && (
+          <View style={styles.macroRow}>
+            <Text style={styles.macro}>P {item.protein ?? 0}g</Text>
+            <Text style={styles.macro}> · C {item.carbs ?? 0}g</Text>
+            <Text style={styles.macro}> · G {item.fat ?? 0}g</Text>
+          </View>
+        )}
       </View>
     </View>
   );

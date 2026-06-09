@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "922734453540",
+    "project_id": "vitalbite-abf0c",
+    "storage_bucket": "vitalbite-abf0c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922734453540:android:ae19b59d76d3514f4049b1",
+        "android_client_info": {
+          "package_name": "com.anonymous.vitalBitemovilapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIqX2CAYBOf7XSafS-yDIbSDqGUoIQ2Tw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

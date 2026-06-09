@@ -25,3 +25,11 @@ export const IA_API_KEY = 'vitalbite_ia_secret_key_dev_change_in_prod';
 
 // Tamaño máximo de imagen aceptado por el backend de IA (5 MB).
 export const IA_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+// ─── Agendamiento de citas vía WhatsApp ────────────────────────────────────────
+// Número de la recepción/consultorio al que el paciente puede escribir para
+// coordinar una cita manualmente como alternativa al agendamiento in-app.
+// `WHATSAPP_BOOKING_NUMBER` se usa para mostrar; `WHATSAPP_BOOKING_E164` (solo
+// dígitos, con código de país) es el que arma el enlace https://wa.me/.
+export const WHATSAPP_BOOKING_NUMBER = '+1 (555) 151-2577';
+export const WHATSAPP_BOOKING_E164 = '15551512577';

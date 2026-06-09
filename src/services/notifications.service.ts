@@ -42,6 +42,8 @@ export type NotificationType =
   | 'CITA_CANCELADA'
   | 'CITA_CONFIRMADA'
   | 'CITA_REPROGRAMADA'
+  | 'CITA_COMPLETADA'
+  | 'CITA_NO_ASISTIO'
   | 'DIETA_ASIGNADA'
   | 'MENSAJE'
   | 'REPORTE';

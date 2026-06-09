@@ -12,9 +12,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { AuthScreenProps } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
+import { loadSettings } from '../../contexts/SettingsContext';
 import { colors, fonts, gradientColors } from '../../constants/theme';
 
-export default function BiometricAuthScreen({ navigation }: AuthScreenProps<'BiometricAuth'>) {
+export default function BiometricAuthScreen({ navigation, route }: AuthScreenProps<'BiometricAuth'>) {
   const { restoreSession } = useAuth();
   const pulse = useRef(new Animated.Value(1)).current;
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -38,6 +39,16 @@ export default function BiometricAuthScreen({ navigation }: AuthScreenProps<'Bio
     setIsAuthenticating(true);
 
     try {
+      // El usuario debe haber activado la biometría en Configuración. Si no
+      // (y no se forzó desde el botón de login), restauramos la sesión directo.
+      const force = route.params?.force ?? false;
+      const { biometricEnabled } = await loadSettings();
+      if (!force && !biometricEnabled) {
+        const ok = await restoreSession();
+        if (!ok) navigation.replace('Login');
+        return;
+      }
+
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
 

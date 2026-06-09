@@ -23,6 +23,7 @@ export const GET_MY_PROFILE = gql`
       birthDate
       gender
       nutritionGoal
+      clinicalNotes
       heightCm
       status
     }
@@ -61,6 +62,7 @@ export interface GqlMyProfile {
   birthDate?: string | null;
   gender?: string | null;
   nutritionGoal?: string | null;
+  clinicalNotes?: string | null;
   heightCm?: number | null;
   status: string;
 }

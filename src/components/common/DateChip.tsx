@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fonts, gradientColors, radius } from '../../constants/theme';
 
@@ -11,28 +11,25 @@ interface DateChipProps {
 }
 
 export default function DateChip({ label, active, onPress, style }: DateChipProps) {
-  if (active) {
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[{ borderRadius: radius.full, overflow: 'hidden' }, style]}>
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.chip}
-        >
-          <Text style={[styles.label, styles.activeLabel]}>{label}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.75}
-      style={[styles.chip, styles.inactiveChip, style]}
+      activeOpacity={0.8}
+      style={[styles.chip, styles.clip, style]}
     >
-      <Text style={[styles.label, styles.inactiveLabel]}>{label}</Text>
+      {/* Gradiente montado SIEMPRE (nunca se desmonta) → evita el bug de repintado
+          de expo-linear-gradient en Fabric al cambiar de estado activo/inactivo. */}
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Capa blanca que oculta el gradiente cuando el chip está inactivo. */}
+      {!active && <View style={[StyleSheet.absoluteFill, styles.inactiveCover]} />}
+      <Text style={[styles.label, active ? styles.activeLabel : styles.inactiveLabel]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -45,10 +42,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inactiveChip: {
+  clip: {
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  inactiveCover: {
+    backgroundColor: colors.white,
     borderWidth: 1.5,
     borderColor: colors.gradientEnd,
-    backgroundColor: colors.white,
+    borderRadius: radius.full,
   },
   label: {
     fontFamily: fonts.medium,

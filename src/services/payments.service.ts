@@ -17,11 +17,12 @@ export const GET_SUBSCRIPTION_PLANS = gql`
 export const GET_CURRENT_SUBSCRIPTION = gql`
   query GetCurrentTenantSubscription {
     currentTenantSubscription {
-      id
       planCode
+      planName
       status
+      billingPeriod
       startedAt
-      expiresAt
+      nextReviewAt
     }
   }
 `;
@@ -29,13 +30,23 @@ export const GET_CURRENT_SUBSCRIPTION = gql`
 export const REQUEST_PLAN_CHANGE = gql`
   mutation RequestPlanChange($input: RequestPlanChangeInput!) {
     requestPlanChange(input: $input) {
-      id
-      planCode
+      requestId
+      requestedPlanCode
+      requestedPlanName
       status
       comment
     }
   }
 `;
+
+export interface GqlTenantSubscription {
+  planCode: string;
+  planName: string;
+  status: string;
+  billingPeriod: string;
+  startedAt: string;
+  nextReviewAt: string;
+}
 
 export interface GqlSubscriptionPlan {
   code: string;

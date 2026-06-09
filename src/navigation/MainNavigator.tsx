@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 // Stack-only screens
 import AppointmentDetailScreen from '../screens/appointments/AppointmentDetailScreen';
 import AppointmentHistoryScreen from '../screens/appointments/AppointmentHistoryScreen';
+import BookAppointmentScreen from '../screens/appointments/BookAppointmentScreen';
 import DietScreen from '../screens/diet/DietScreen';
 import DietMealDetailScreen from '../screens/diet/DietMealDetailScreen';
 import ScannerHomeScreen from '../screens/scanner/ScannerHomeScreen';
@@ -24,7 +25,9 @@ import MeasurementsHistoryScreen from '../screens/progress/MeasurementsHistorySc
 import ProgressChartScreen from '../screens/progress/ProgressChartScreen';
 import NotificationScreen from '../screens/notifications/NotificationScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import MyDocumentsScreen from '../screens/profile/MyDocumentsScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
+import InfoPageScreen from '../screens/profile/InfoPageScreen';
 import NutritionistProfileScreen from '../screens/nutritionist/NutritionistProfileScreen';
 import NutritionistScheduleScreen from '../screens/nutritionist/NutritionistScheduleScreen';
 import PaymentPlansScreen from '../screens/payment/PaymentPlansScreen';
@@ -128,8 +131,11 @@ export default function MainNavigator() {
       <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen name="AppointmentDetail" component={AppointmentDetailScreen} />
       <Stack.Screen name="AppointmentHistory" component={AppointmentHistoryScreen} />
+      <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="MyDocuments" component={MyDocumentsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="InfoPage" component={InfoPageScreen} />
       <Stack.Screen name="NutritionistProfile" component={NutritionistProfileScreen} />
       <Stack.Screen name="NutritionistSchedule" component={NutritionistScheduleScreen} />
       <Stack.Screen name="PaymentPlans" component={PaymentPlansScreen} />

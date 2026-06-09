@@ -36,10 +36,11 @@ export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>
     skip: !patientId,
   });
 
-  const { data: dietData } = useQuery<{ myActiveDiet: GqlDiet | null }>(GET_ACTIVE_DIET, {
+  const { data: dietData } = useQuery<{ activeDietByPatient: GqlDiet | null }>(GET_ACTIVE_DIET, {
     variables: { patientId },
     skip: !patientId,
     fetchPolicy: 'cache-and-network',
+    errorPolicy: 'all',
   });
 
   const { data: nutData } = useQuery<{ myNutritionist: GqlNutritionist | null }>(GET_MY_NUTRITIONIST);
@@ -107,7 +108,14 @@ export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>
               onPress={() => (navigation as any).navigate?.('AppointmentDetail', { appointmentId: nextAppt.id })}
             />
           ) : (
-            <Text style={styles.emptyText}>No tienes citas próximas</Text>
+            <TouchableOpacity
+              style={styles.bookCta}
+              activeOpacity={0.85}
+              onPress={() => (navigation as any).navigate?.('BookAppointment')}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={colors.gradientEnd} style={{ marginRight: 8 }} />
+              <Text style={styles.bookCtaText}>Agendar una cita</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -129,7 +137,7 @@ export default function HomeScreen({ navigation }: MainTabScreenProps<'HomeTab'>
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Alimentación</Text>
           <DietPreviewCard
-            dietName={dietData?.myActiveDiet?.name ?? 'Sin plan activo'}
+            dietName={dietData?.activeDietByPatient?.name ?? 'Sin plan activo'}
             nextMeal="Ver plan completo"
             onPress={() => (navigation as any).navigate?.('Diet')}
           />
@@ -268,6 +276,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     paddingVertical: 8,
+  },
+  bookCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  bookCtaText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.gradientEnd,
   },
   quickGrid: {
     flexDirection: 'row',
