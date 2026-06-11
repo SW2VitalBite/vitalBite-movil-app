@@ -144,15 +144,12 @@ export default function BookAppointmentScreen({ navigation }: MainStackScreenPro
       `${dateText}. ¿Hay disponibilidad?`;
     const url = `https://wa.me/${WHATSAPP_BOOKING_E164}?text=${encodeURIComponent(message)}`;
 
+    // No usamos Linking.canOpenURL como compuerta: en development build (Android
+    // 11+ con package visibility) devuelve un falso negativo para https/whatsapp
+    // aunque WhatsApp esté instalado, y mostraba "WhatsApp no disponible". Abrimos
+    // directo: si WhatsApp está, lo abre; si no, cae al navegador (wa.me). Solo si
+    // de verdad no hay handler, openURL lanza y el catch muestra el aviso.
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert(
-          'WhatsApp no disponible',
-          `No se pudo abrir WhatsApp. Puedes escribirnos al ${WHATSAPP_BOOKING_NUMBER}.`,
-        );
-        return;
-      }
       await Linking.openURL(url);
     } catch {
       Alert.alert(

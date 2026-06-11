@@ -37,8 +37,7 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
       const url = pdfData?.requestDietPdf?.url;
       if (!url) throw new Error('no-url');
 
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) throw new Error('unsupported');
+      // Sin compuerta canOpenURL: da falso negativo en dev build (Android 11+).
       await Linking.openURL(url);
     } catch {
       Alert.alert(

@@ -41,8 +41,7 @@ export default function MyDocumentsScreen({ navigation }: MainStackScreenProps<'
       return;
     }
     try {
-      const supported = await Linking.canOpenURL(doc.url);
-      if (!supported) throw new Error('unsupported');
+      // Sin compuerta canOpenURL: da falso negativo en dev build (Android 11+).
       await Linking.openURL(doc.url);
     } catch {
       Alert.alert('No se pudo abrir', 'Inténtalo de nuevo en unos segundos.');
