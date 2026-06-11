@@ -25,6 +25,8 @@ const NOTIF_ICONS: Record<string, string> = {
   CITA_CANCELADA: 'close-circle-outline',
   CITA_CONFIRMADA: 'checkmark-circle-outline',
   CITA_REPROGRAMADA: 'refresh-circle-outline',
+  CITA_COMPLETADA: 'checkmark-done-circle-outline',
+  CITA_NO_ASISTIO: 'alert-circle-outline',
   DIETA_ASIGNADA: 'nutrition-outline',
   MENSAJE: 'chatbubble-outline',
   REPORTE: 'document-text-outline',
@@ -53,7 +55,7 @@ function filterByRange(notifications: GqlNotification[], filter: DateFilter): Gq
 
     if (filter === 'Hoy') return diffDays === 0;
     if (filter === 'Ayer') return diffDays === 1;
-    if (filter === 'Semana') return diffDays < 7;
+    if (filter === 'Semana') return diffDays >= 0 && diffDays < 7;
     return true; // 'Todas'
   });
 }

@@ -34,17 +34,17 @@ function filterByDays<T extends { measuredAt: string }>(items: T[], days: number
   return items.filter((m) => new Date(m.measuredAt) >= cutoff);
 }
 
-function extractMeasValue(m: GqlBodyMeasurement, key: string): number {
-  if (key === 'weight') return m.weightKg;
-  if (key === 'bmi') return m.bmi ?? 0;
-  return 0;
+function extractMeasValue(m: GqlBodyMeasurement, key: string): number | null {
+  if (key === 'weight') return m.weightKg ?? null;
+  if (key === 'bmi') return m.bmi ?? null;
+  return null;
 }
 
-function extractCompValue(c: GqlBodyComposition, key: string): number {
-  if (key === 'bodyFatPct') return c.bodyFatPercentage ?? 0;
-  if (key === 'muscleMassKg') return c.muscleMassKg ?? 0;
-  if (key === 'waterPct') return c.waterPercentage ?? 0;
-  return 0;
+function extractCompValue(c: GqlBodyComposition, key: string): number | null {
+  if (key === 'bodyFatPct') return c.bodyFatPercentage ?? null;
+  if (key === 'muscleMassKg') return c.muscleMassKg ?? null;
+  if (key === 'waterPct') return c.waterPercentage ?? null;
+  return null;
 }
 
 export default function ProgressChartScreen({ navigation, route }: MainStackScreenProps<'ProgressChart'>) {
@@ -73,7 +73,8 @@ export default function ProgressChartScreen({ navigation, route }: MainStackScre
         .map((m) => ({
           label: new Date(m.measuredAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
           value: extractMeasValue(m, activeMetric),
-        }));
+        }))
+        .filter((d): d is { label: string; value: number } => d.value !== null);
     } else {
       const all = compData?.bodyCompositionByPatient ?? [];
       return filterByDays(all, days)
@@ -81,7 +82,8 @@ export default function ProgressChartScreen({ navigation, route }: MainStackScre
         .map((c) => ({
           label: new Date(c.measuredAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
           value: extractCompValue(c, activeMetric),
-        }));
+        }))
+        .filter((d): d is { label: string; value: number } => d.value !== null);
     }
   })();
 

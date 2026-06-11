@@ -1,50 +1,70 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@apollo/client/react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import GradientHeader from '../../components/common/GradientHeader';
 import GradientButton from '../../components/common/GradientButton';
 import MealCard from '../../components/diet/MealCard';
 import type { MainStackScreenProps } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
-import { GET_ACTIVE_DIET, GqlDiet, GqlDietMeal } from '../../services/diets.service';
-import type { MealSection, FoodItem } from '../../mocks/data';
-import { colors, fonts, radius, shadow } from '../../constants/theme';
-
-const MEAL_META: Record<string, { type: MealSection['type']; label: string; icon: string }> = {
-  DESAYUNO: { type: 'breakfast', label: 'Desayuno', icon: 'sunny-outline' },
-  ALMUERZO: { type: 'lunch', label: 'Almuerzo', icon: 'partly-sunny-outline' },
-  CENA: { type: 'dinner', label: 'Cena', icon: 'moon-outline' },
-  MERIENDA: { type: 'snack', label: 'Merienda', icon: 'nutrition-outline' },
-};
-
-function toMealSection(meal: GqlDietMeal): MealSection {
-  const meta = MEAL_META[meal.mealType] ?? { type: 'snack', label: meal.mealType, icon: 'nutrition-outline' };
-  const items: FoodItem[] = (meal.items ?? []).map((item) => ({
-    id: item.id,
-    name: item.name,
-    portion: `${item.quantity} ${item.unit}`,
-    calories: item.calories ?? 0,
-    protein: item.protein ?? 0,
-    carbs: item.carbs ?? 0,
-    fat: item.fat ?? 0,
-  }));
-  const totalCalories = items.reduce((s, f) => s + f.calories, 0);
-  return { id: meal.id, ...meta, items, totalCalories };
-}
+import { GET_ACTIVE_DIET, GqlDiet, toMealView } from '../../services/diets.service';
+import { REQUEST_DIET_PDF, GqlDietPdfDocument } from '../../services/documents.service';
+import { colors, fonts, shadow } from '../../constants/theme';
 
 export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>) {
   const { patientId } = useAuth();
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
 
-  const { data, loading, error } = useQuery<{ myActiveDiet: GqlDiet | null }>(GET_ACTIVE_DIET, {
+  // `activeDietByPatient` es non-null: si no hay plan activo el backend devuelve
+  // un error NotFound. Con errorPolicy 'all' lo tratamos como "sin plan".
+  const { data, loading } = useQuery<{ activeDietByPatient: GqlDiet | null }>(GET_ACTIVE_DIET, {
     variables: { patientId },
     skip: !patientId,
     fetchPolicy: 'cache-and-network',
+    errorPolicy: 'all',
   });
 
-  const diet = data?.myActiveDiet;
-  const meals = (diet?.meals ?? []).map(toMealSection);
-  const totalCalories = meals.reduce((s, m) => s + m.totalCalories, 0);
+  const diet = data?.activeDietByPatient ?? null;
+
+  const [requestDietPdf, { loading: pdfLoading }] = useMutation<{
+    requestDietPdf: GqlDietPdfDocument;
+  }>(REQUEST_DIET_PDF);
+
+  const handleDownloadPdf = async () => {
+    if (!diet) return;
+    try {
+      const { data: pdfData } = await requestDietPdf({ variables: { dietId: diet.id } });
+      const url = pdfData?.requestDietPdf?.url;
+      if (!url) throw new Error('no-url');
+
+      // Sin compuerta canOpenURL: da falso negativo en dev build (Android 11+).
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        'No se pudo abrir el PDF',
+        'No pudimos generar o abrir el plan de dieta. Inténtalo de nuevo en unos segundos.',
+      );
+    }
+  };
+
+  const days = useMemo(
+    () => [...(diet?.days ?? [])].sort((a, b) => a.dayOrder - b.dayOrder),
+    [diet],
+  );
+
+  const selectedDay =
+    days.find((d) => d.id === selectedDayId) ?? days[0] ?? null;
+
+  const meals = useMemo(
+    () =>
+      selectedDay
+        ? [...selectedDay.meals].sort((a, b) => a.mealOrder - b.mealOrder).map(toMealView)
+        : [],
+    [selectedDay],
+  );
+
+  const dayCalories = meals.reduce((s, m) => s + m.totalCalories, 0);
+  const totalCalories = diet?.estimatedCalories ?? dayCalories;
 
   if (loading && !diet) {
     return (
@@ -70,9 +90,11 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
     );
   }
 
-  const startDateLabel = new Date(diet.startDate).toLocaleDateString('es-ES', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const startDateLabel = diet.startDate
+    ? new Date(diet.startDate).toLocaleDateString('es-ES', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
@@ -86,35 +108,73 @@ export default function DietScreen({ navigation }: MainStackScreenProps<'Diet'>)
             <Text style={styles.infoLabel}>Plan</Text>
             <Text style={styles.infoValue}>{diet.name}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
-            <Text style={styles.infoLabel}>Desde</Text>
-            <Text style={styles.infoValue}>{startDateLabel}</Text>
-          </View>
-          <View style={styles.calorieBanner}>
-            <Text style={styles.calorieTotalLabel}>Total del día</Text>
-            <View style={styles.calorieValueRow}>
-              <Text style={styles.calorieValue}>{totalCalories}</Text>
-              <Text style={styles.calorieUnit}> kcal</Text>
+          {startDateLabel ? (
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
+              <Text style={styles.infoLabel}>Desde</Text>
+              <Text style={styles.infoValue}>{startDateLabel}</Text>
             </View>
-          </View>
+          ) : null}
+          {totalCalories > 0 && (
+            <View style={styles.calorieBanner}>
+              <Text style={styles.calorieTotalLabel}>Total del día</Text>
+              <View style={styles.calorieValueRow}>
+                <Text style={styles.calorieValue}>{totalCalories}</Text>
+                <Text style={styles.calorieUnit}> kcal</Text>
+              </View>
+            </View>
+          )}
         </View>
+
+        {/* Day selector (sólo si el plan tiene más de un día) */}
+        {days.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dayChips}
+          >
+            {days.map((day) => {
+              const active = selectedDay?.id === day.id;
+              return (
+                <TouchableOpacity
+                  key={day.id}
+                  onPress={() => setSelectedDayId(day.id)}
+                  activeOpacity={0.85}
+                  style={[styles.dayChip, active && styles.dayChipActive]}
+                >
+                  <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>
+                    {day.dayLabel}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Meal cards */}
         <Text style={styles.sectionTitle}>Tiempos de comida</Text>
-        {meals.map((meal) => (
-          <MealCard
-            key={meal.id}
-            meal={meal}
-            onPress={() =>
-              navigation.navigate('DietMealDetail', { mealId: meal.id, mealLabel: meal.label })
-            }
-          />
-        ))}
+        {meals.length > 0 ? (
+          meals.map((meal) => (
+            <MealCard
+              key={meal.id}
+              meal={meal}
+              onPress={() =>
+                navigation.navigate('DietMealDetail', {
+                  mealLabel: meal.label,
+                  totalCalories: meal.totalCalories,
+                  items: meal.items,
+                })
+              }
+            />
+          ))
+        ) : (
+          <Text style={styles.emptySubtitle}>Este día aún no tiene comidas registradas.</Text>
+        )}
 
         <GradientButton
-          label="Descargar PDF de la dieta"
-          onPress={() => {}}
+          label={pdfLoading ? 'Generando PDF…' : 'Descargar PDF de la dieta'}
+          onPress={handleDownloadPdf}
+          loading={pdfLoading}
           style={{ marginTop: 16, marginBottom: 8 }}
         />
 
@@ -206,6 +266,30 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.textMuted,
+  },
+  dayChips: {
+    gap: 8,
+    paddingBottom: 16,
+  },
+  dayChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dayChipActive: {
+    backgroundColor: colors.gradientEnd,
+    borderColor: colors.gradientEnd,
+  },
+  dayChipText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  dayChipTextActive: {
+    color: colors.white,
   },
   sectionTitle: {
     fontFamily: fonts.semiBold,

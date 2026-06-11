@@ -72,7 +72,7 @@ export default function NutritionistProfileScreen({ navigation }: MainStackScree
 
         <GradientButton
           label="Agendar cita"
-          onPress={() => navigation.navigate('NutritionistSchedule')}
+          onPress={() => navigation.navigate('BookAppointment')}
           style={{ marginBottom: 12 }}
         />
       </ScrollView>

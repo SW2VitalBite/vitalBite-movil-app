@@ -96,7 +96,7 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
 
         <TouchableOpacity
           style={styles.biometricBtn}
-          onPress={() => navigation.navigate('BiometricAuth')}
+          onPress={() => navigation.navigate('BiometricAuth', { force: true })}
           activeOpacity={0.8}
         >
           <LinearGradient

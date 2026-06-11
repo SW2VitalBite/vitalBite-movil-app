@@ -7,9 +7,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -19,8 +25,11 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
+      "googleServicesFile": "./google-services.json",
       "package": "com.anonymous.vitalBitemovilapp"
     },
     "web": {
@@ -52,6 +61,12 @@
           "photosPermission": "VitalBite accede a tus fotos para analizar imágenes de alimentos."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9536c9e2-68a0-4f73-9543-b884d29c22bf"
+      }
+    },
+    "owner": "aticlla"
   }
 }

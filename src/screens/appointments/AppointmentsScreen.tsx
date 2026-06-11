@@ -35,7 +35,8 @@ export default function AppointmentsScreen({ navigation }: MainTabScreenProps<'A
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       <GradientHeader
         title="Mis Citas"
-        rightIcon="calendar-outline"
+        rightIcon="add-circle-outline"
+        onRightPress={() => (navigation as any).navigate('BookAppointment')}
       />
 
       {/* Tabs */}
@@ -89,9 +90,13 @@ export default function AppointmentsScreen({ navigation }: MainTabScreenProps<'A
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListFooterComponent={
             activeTab === 0 ? (
-              <TouchableOpacity style={styles.whatsappBtn} activeOpacity={0.85}>
-                <Ionicons name="logo-whatsapp" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                <Text style={styles.whatsappText}>Agendar nueva cita vía WhatsApp</Text>
+              <TouchableOpacity
+                style={styles.bookBtn}
+                activeOpacity={0.85}
+                onPress={() => (navigation as any).navigate('BookAppointment')}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                <Text style={styles.bookText}>Agendar nueva cita</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -176,16 +181,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
   },
-  whatsappBtn: {
+  bookBtn: {
     marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#25D366',
+    backgroundColor: colors.gradientEnd,
     borderRadius: radius.xl,
     paddingVertical: 14,
+    ...shadow.md,
   },
-  whatsappText: {
+  bookText: {
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: colors.white,

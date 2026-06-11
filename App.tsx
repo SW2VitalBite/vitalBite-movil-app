@@ -16,6 +16,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './src/lib/apolloClient';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { SettingsProvider } from './src/contexts/SettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/constants/theme';
 
@@ -61,16 +62,18 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ApolloProvider client={apolloClient}>
-          <AuthProvider>
-            <NavigationContainer>
-              <StatusBar
-                barStyle="light-content"
-                backgroundColor={colors.gradientEnd}
-                translucent={Platform.OS === 'android'}
-              />
-              <AppNavigator />
-            </NavigationContainer>
-          </AuthProvider>
+          <SettingsProvider>
+            <AuthProvider>
+              <NavigationContainer>
+                <StatusBar
+                  barStyle="light-content"
+                  backgroundColor={colors.gradientEnd}
+                  translucent={Platform.OS === 'android'}
+                />
+                <AppNavigator />
+              </NavigationContainer>
+            </AuthProvider>
+          </SettingsProvider>
         </ApolloProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

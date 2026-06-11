@@ -5,7 +5,15 @@ import { useQuery } from '@apollo/client/react';
 import GradientHeader from '../../components/common/GradientHeader';
 import type { MainStackScreenProps } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
-import { GET_BODY_MEASUREMENTS, GET_BODY_COMPOSITION_HISTORY, GqlBodyMeasurement, GqlBodyComposition } from '../../services/progress.service';
+import {
+  GET_BODY_MEASUREMENTS,
+  GET_BODY_COMPOSITION_HISTORY,
+  GET_ANTHROPOMETRY_HISTORY,
+  ANTHROPOMETRY_FIELDS,
+  GqlBodyMeasurement,
+  GqlBodyComposition,
+  GqlAnthropometry,
+} from '../../services/progress.service';
 import { colors, fonts, radius, shadow } from '../../constants/theme';
 
 export default function MeasurementsHistoryScreen({ navigation }: MainStackScreenProps<'MeasurementsHistory'>) {
@@ -22,14 +30,28 @@ export default function MeasurementsHistoryScreen({ navigation }: MainStackScree
     skip: !patientId,
   });
 
+  const { data: anthroData } = useQuery<{ anthropometryByPatient: GqlAnthropometry[] }>(GET_ANTHROPOMETRY_HISTORY, {
+    variables: { patientId },
+    skip: !patientId,
+  });
+
   const measurements = measData?.bodyMeasurementsByPatient ?? [];
   const compositions = compData?.bodyCompositionByPatient ?? [];
+  const anthropometries = anthroData?.anthropometryByPatient ?? [];
 
   // Join mediciones con composición por fecha aproximada (mismo día)
   const compositionByDate: Record<string, any> = {};
   for (const c of compositions) {
     const key = new Date(c.measuredAt).toDateString();
     compositionByDate[key] = c;
+  }
+
+  // Antropometría enlazada por FK (body_measurement_id) y, como respaldo, por día.
+  const anthroByMeasurementId: Record<string, GqlAnthropometry> = {};
+  const anthroByDate: Record<string, GqlAnthropometry> = {};
+  for (const a of anthropometries) {
+    if (a.bodyMeasurementId) anthroByMeasurementId[a.bodyMeasurementId] = a;
+    anthroByDate[new Date(a.measuredAt).toDateString()] = a;
   }
 
   return (
@@ -53,7 +75,13 @@ export default function MeasurementsHistoryScreen({ navigation }: MainStackScree
           renderItem={({ item, index }: { item: any; index: number }) => {
             const isOpen = expanded === item.id;
             const isFirst = index === 0;
-            const comp = compositionByDate[new Date(item.measuredAt).toDateString()];
+            const dateKey = new Date(item.measuredAt).toDateString();
+            const comp = compositionByDate[dateKey];
+            const anthro = anthroByMeasurementId[item.id] ?? anthroByDate[dateKey];
+            const anthroValues = anthro
+              ? ANTHROPOMETRY_FIELDS.map((f) => ({ ...f, value: anthro[f.key] as number | null | undefined }))
+                  .filter((f) => f.value != null)
+              : [];
 
             return (
               <View style={[styles.card, isFirst && styles.cardHighlight]}>
@@ -96,13 +124,31 @@ export default function MeasurementsHistoryScreen({ navigation }: MainStackScree
                         <MeasureItem label="Masa ósea" value={comp.boneMassKg != null ? `${comp.boneMassKg} kg` : '—'} />
                       </View>
                     ) : null}
-                    <View style={styles.circumRow}>
-                      <CircumItem label="Cintura" value={item.waistCm != null ? `${item.waistCm} cm` : '—'} />
-                      <CircumItem label="Cadera" value={item.hipCm != null ? `${item.hipCm} cm` : '—'} />
-                    </View>
-                    <TouchableOpacity style={styles.pdfRow} activeOpacity={0.8}>
+                    {anthroValues.length > 0 ? (
+                      <View style={styles.anthroSection}>
+                        <Text style={styles.anthroTitle}>Perímetros corporales</Text>
+                        <View style={styles.anthroGrid}>
+                          {anthroValues.map((f) => (
+                            <View key={f.key} style={styles.anthroItem}>
+                              <Text style={styles.anthroVal}>{f.value} cm</Text>
+                              <Text style={styles.anthroLabel}>{f.label}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.circumRow}>
+                        <CircumItem label="Cintura" value={item.waistCm != null ? `${item.waistCm} cm` : '—'} />
+                        <CircumItem label="Cadera" value={item.hipCm != null ? `${item.hipCm} cm` : '—'} />
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      style={styles.pdfRow}
+                      activeOpacity={0.8}
+                      onPress={() => navigation.navigate('MyDocuments')}
+                    >
                       <Ionicons name="document-text-outline" size={14} color={colors.gradientEnd} style={{ marginRight: 5 }} />
-                      <Text style={styles.pdfLink}>Ver reporte PDF de esta sesión</Text>
+                      <Text style={styles.pdfLink}>Ver mis documentos PDF</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -184,6 +230,29 @@ const styles = StyleSheet.create({
   },
   measureVal: { fontFamily: fonts.bold, fontSize: 18, color: colors.gradientEnd },
   measureLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  anthroSection: { gap: 8 },
+  anthroTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: colors.textDark,
+  },
+  anthroGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  anthroItem: {
+    width: '31%',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+  },
+  anthroVal: { fontFamily: fonts.bold, fontSize: 14, color: colors.gradientEnd },
+  anthroLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 2,
+    textAlign: 'center',
+  },
   circumRow: { flexDirection: 'row', justifyContent: 'space-around' },
   circumItem: { alignItems: 'center' },
   circumLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted },

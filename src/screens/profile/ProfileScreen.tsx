@@ -94,11 +94,14 @@ export default function ProfileScreen({ navigation }: MainTabScreenProps<'Profil
         {/* Menu links */}
         <View style={styles.menuCard}>
           <MenuLink icon="person-outline" label="Mi nutricionista" onPress={() => (navigation as any).navigate('NutritionistProfile')} />
-          <MenuLink icon="document-text-outline" label="Mis documentos" onPress={() => {}} />
-          <MenuLink icon="card-outline" label="Planes de suscripción" onPress={() => (navigation as any).navigate('PaymentPlans')} />
+          <MenuLink
+            icon="document-text-outline"
+            label="Mis documentos"
+            onPress={() => (navigation as any).navigate('MyDocuments')}
+          />
           <MenuLink icon="settings-outline" label="Configuración" onPress={() => (navigation as any).navigate('Settings')} />
-          <MenuLink icon="shield-checkmark-outline" label="Privacidad y seguridad" onPress={() => {}} />
-          <MenuLink icon="help-circle-outline" label="Ayuda y soporte" onPress={() => {}} />
+          <MenuLink icon="shield-checkmark-outline" label="Privacidad y seguridad" onPress={() => (navigation as any).navigate('InfoPage', { page: 'privacy' })} />
+          <MenuLink icon="help-circle-outline" label="Ayuda y soporte" onPress={() => (navigation as any).navigate('InfoPage', { page: 'help' })} />
           <MenuLink icon="log-out-outline" label="Cerrar sesión" onPress={handleLogout} danger />
         </View>
       </ScrollView>

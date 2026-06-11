@@ -30,6 +30,19 @@ export const GET_APPOINTMENT_BY_ID = gql`
   }
 `;
 
+export const CREATE_APPOINTMENT = gql`
+  mutation CreateAppointment($input: CreateAppointmentInput!) {
+    createAppointment(input: $input) {
+      id
+      scheduledAt
+      durationMinutes
+      status
+      mode
+      reason
+    }
+  }
+`;
+
 export const CANCEL_APPOINTMENT = gql`
   mutation CancelAppointment($id: ID!, $input: CancelAppointmentInput!) {
     cancelAppointment(id: $id, input: $input) {

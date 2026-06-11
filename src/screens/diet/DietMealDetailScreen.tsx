@@ -4,16 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import GradientHeader from '../../components/common/GradientHeader';
 import FoodItem from '../../components/diet/FoodItem';
 import type { MainStackScreenProps } from '../../navigation/types';
-import { mockDiet } from '../../mocks/data';
+import { mealIcon } from '../../services/diets.service';
 import { colors, fonts, radius, shadow } from '../../constants/theme';
 
 export default function DietMealDetailScreen({ navigation, route }: MainStackScreenProps<'DietMealDetail'>) {
-  const { mealId, mealLabel } = route.params;
-  const meal = mockDiet.meals.find((m) => m.id === mealId) ?? mockDiet.meals[0];
-
-  const totalProtein = meal.items.reduce((s, f) => s + f.protein, 0);
-  const totalCarbs   = meal.items.reduce((s, f) => s + f.carbs, 0);
-  const totalFat     = meal.items.reduce((s, f) => s + f.fat, 0);
+  const { mealLabel, totalCalories, items } = route.params;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
@@ -23,60 +18,45 @@ export default function DietMealDetailScreen({ navigation, route }: MainStackScr
         {/* Meal header */}
         <View style={styles.mealHeader}>
           <View style={styles.mealIconArea}>
-            <Ionicons name={meal.icon as any} size={32} color={colors.gradientEnd} />
+            <Ionicons name={mealIcon(mealLabel) as any} size={32} color={colors.gradientEnd} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.mealTitle}>{meal.label}</Text>
-            <Text style={styles.itemCountText}>{meal.items.length} alimentos</Text>
+            <Text style={styles.mealTitle}>{mealLabel}</Text>
+            <Text style={styles.itemCountText}>
+              {items.length} alimento{items.length !== 1 ? 's' : ''}
+            </Text>
           </View>
-          <View style={styles.totalCalArea}>
-            <Text style={styles.totalCalValue}>{meal.totalCalories}</Text>
-            <Text style={styles.totalCalUnit}>kcal</Text>
-          </View>
-        </View>
-
-        {/* Macros summary */}
-        <View style={styles.macroRow}>
-          <MacroSummary label="Proteínas" value={`${totalProtein}g`} color="#1DB954" />
-          <MacroSummary label="Carbohidratos" value={`${totalCarbs}g`} color="#FFB800" />
-          <MacroSummary label="Grasas" value={`${totalFat}g`} color="#FF7043" />
+          {totalCalories > 0 && (
+            <View style={styles.totalCalArea}>
+              <Text style={styles.totalCalValue}>{totalCalories}</Text>
+              <Text style={styles.totalCalUnit}>kcal</Text>
+            </View>
+          )}
         </View>
 
         {/* Food list */}
         <Text style={styles.listTitle}>Alimentos</Text>
-        <View style={styles.foodList}>
-          {meal.items.map((item) => (
-            <FoodItem key={item.id} item={item} />
-          ))}
-        </View>
+        {items.length > 0 ? (
+          <View style={styles.foodList}>
+            {items.map((item) => (
+              <FoodItem key={item.id} item={item} />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>Esta comida aún no tiene alimentos registrados.</Text>
+        )}
 
         {/* Totals */}
-        <View style={styles.totalsCard}>
-          <Text style={styles.totalsTitle}>Totales del tiempo de comida</Text>
-          <TotalRow label="Calorías" value={`${meal.totalCalories} kcal`} />
-          <TotalRow label="Proteínas" value={`${totalProtein} g`} />
-          <TotalRow label="Carbohidratos" value={`${totalCarbs} g`} />
-          <TotalRow label="Grasas" value={`${totalFat} g`} />
-        </View>
+        {totalCalories > 0 && (
+          <View style={styles.totalsCard}>
+            <Text style={styles.totalsTitle}>Totales del tiempo de comida</Text>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Calorías</Text>
+              <Text style={styles.totalValue}>{totalCalories} kcal</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
-    </View>
-  );
-}
-
-function MacroSummary({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={[styles.macroCard, { borderColor: color + '40' }]}>
-      <Text style={[styles.macroValue, { color }]}>{value}</Text>
-      <Text style={styles.macroLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function TotalRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.totalRow}>
-      <Text style={styles.totalLabel}>{label}</Text>
-      <Text style={styles.totalValue}>{value}</Text>
     </View>
   );
 }
@@ -125,30 +105,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
   },
-  macroRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  macroCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: radius.md,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
-  macroValue: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-  },
-  macroLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 3,
-    textAlign: 'center',
-  },
   listTitle: {
     fontFamily: fonts.semiBold,
     fontSize: 16,
@@ -156,6 +112,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   foodList: {
+    marginBottom: 20,
+  },
+  emptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
     marginBottom: 20,
   },
   totalsCard: {

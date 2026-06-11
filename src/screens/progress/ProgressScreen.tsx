@@ -147,7 +147,7 @@ export default function ProgressScreen({ navigation }: MainStackScreenProps<'Pro
 
             <TouchableOpacity
               style={styles.chartDetailBtn}
-              onPress={() => navigation.navigate('ProgressChart', { metric: 'bmi', metricLabel: 'IMC' })}
+              onPress={() => navigation.navigate('ProgressChart', { metric: 'bmi' })}
               activeOpacity={0.8}
             >
               <Ionicons name="analytics-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
@@ -155,10 +155,10 @@ export default function ProgressScreen({ navigation }: MainStackScreenProps<'Pro
               <Ionicons name="chevron-forward" size={16} color={colors.gradientEnd} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.pdfBtn} activeOpacity={0.8}>
+            {/* <TouchableOpacity style={styles.pdfBtn} activeOpacity={0.8}>
               <Ionicons name="download-outline" size={18} color={colors.gradientEnd} style={{ marginRight: 8 }} />
               <Text style={styles.pdfBtnText}>Descargar reporte PDF</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </>
         )}
       </ScrollView>
